@@ -41,11 +41,9 @@ struct MatchedGeometryEffectUITests {
                 MatchedGeometryEffectClipShapeModifierExample()
             }
         }
-        withKnownIssue("clipShape rect bug") {
-            openSwiftUIAssertAnimationSnapshot(
-                of: ContentView(),
-                size: CGSize(width: 300, height: 150)
-            )
-        }
+        openSwiftUIAssertAnimationSnapshot(
+            of: ContentView(),
+            size: CGSize(width: 300, height: 150)
+        )
     }
 }

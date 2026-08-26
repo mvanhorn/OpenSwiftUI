@@ -213,6 +213,7 @@ public struct _MatchedGeometryEffect<ID>: MultiViewModifier, PrimitiveViewModifi
                     size: inputs.size,
                     position: inputs.position,
                     transform: inputs.transform,
+                    phase: inputs.viewPhase,
                     childLayoutComputer: .init()
                 )
             )
@@ -243,6 +244,7 @@ public struct _MatchedGeometryEffect<ID>: MultiViewModifier, PrimitiveViewModifi
                     size: inputs.animatedSize(),
                     transform: inputs.transform,
                     containerPosition: inputs.containerPosition,
+                    phase: inputs.viewPhase,
                     clipShape: clipShape,
                     options: inputs.displayListOptions
                 )
@@ -495,6 +497,7 @@ private struct MatchedDisplayList<S>: Rule, AsyncAttribute where S: Shape {
     @Attribute var size: ViewSize
     @Attribute var transform: ViewTransform
     @Attribute var containerPosition: CGPoint
+    @Attribute var phase: _GraphInputs.Phase
     @OptionalAttribute var clipShape: S?
     let options: DisplayList.Options
 
@@ -502,7 +505,9 @@ private struct MatchedDisplayList<S>: Rule, AsyncAttribute where S: Shape {
         let effect: DisplayList.Effect
         if args.properties.contains(.clipRect) {
             let (sharedFrame, sourceAttribute) = sharedFrame
-            if $sharedFrame.identifier != sourceAttribute.identifier, let sharedFrame {
+            let isAnimating = sourceAttribute.identifier == AnyOptionalAttribute().identifier
+            let isMatched = $sharedFrame.identifier != sourceAttribute.identifier
+            if isAnimating || isMatched && !phase.isBeingRemoved, let sharedFrame {
                 var rect = CGRect(
                     position: sharedFrame.origin,
                     size: sharedFrame.size.value,
@@ -543,15 +548,23 @@ private struct MatchedFrame: Rule, AsyncAttribute {
     @Attribute var size: ViewSize
     @Attribute var position: CGPoint
     @Attribute var transform: ViewTransform
+    @Attribute var phase: _GraphInputs.Phase
     @OptionalAttribute var childLayoutComputer: LayoutComputer?
 
     var value: ViewFrame {
         let (sharedFrame, sourceAttribute) = sharedFrame
-        guard $sharedFrame.identifier != sourceAttribute.identifier, let sharedFrame else {
+        let isMatched = if args.properties.contains(.clipRect) {
+            let isAnimating = sourceAttribute.identifier == AnyOptionalAttribute().identifier
+            let isMatched = $sharedFrame.identifier != sourceAttribute.identifier
+            isAnimating || isMatched && !phase.isBeingRemoved
+        } else {
+            $sharedFrame.identifier != sourceAttribute.identifier
+        }
+        guard isMatched, let sharedFrame else {
             return ViewFrame(origin: position, size: size)
         }
         var matchedSize = sharedFrame.size
-        if !args.properties.contains(.size) || args.properties.contains(.clipRect) {
+        if !args.properties.contains(.size) {
             matchedSize = size
         } else if let childLayoutComputer {
             let proposal = _ProposedSize(sharedFrame.size.value)
@@ -727,7 +740,9 @@ private struct SharedFrame: StatefulRule, AsyncAttribute, ObservedAttribute {
             } else {
                 animatorState.nextUpdate()
             }
-            sourceAttribute = AnyOptionalAttribute()
+            if !isAnimationOver || !currentView.args.properties.contains(.clipRect) {
+                sourceAttribute = AnyOptionalAttribute()
+            }
         }
         value = (viewFrame, sourceAttribute)
     }
