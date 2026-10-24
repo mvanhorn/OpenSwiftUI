@@ -58,14 +58,14 @@ class AppDelegate: NSResponder, NSApplicationDelegate {
         defer { Update.end() }
         // FIXME
         let items = AppGraph.shared?.rootSceneList?.items ?? []
-        let view = items[0].value.view
-        let hostingVC = NSHostingController(rootView: view.frame(width: 500, height: 300).rootEnvironment())
+        let item = items[0]
+        let hostingVC = NSHostingController(rootView: item.value.view.rootEnvironment())
         /* OpenSwiftUI Addition Begin */
         if let rendererConfiguration = graph.rendererConfiguration {
             hostingVC._rendererConfiguration = rendererConfiguration
         }
         /* OpenSwiftUI Addition End */
-        let windowVC = WindowController(hostingVC)
+        let windowVC = WindowController(hostingVC, defaultSize: item.defaultSize)
         windowVC.showWindow(nil)
         self.windowVC = windowVC
     }

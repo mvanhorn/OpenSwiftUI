@@ -12,8 +12,10 @@ import OpenAttributeGraphShims
 
 // FIXME
 final class WindowController<Content>: NSWindowController where Content: View {
-    init(_ hostingVC: NSHostingController<Content>) {
+    init(_ hostingVC: NSHostingController<Content>, defaultSize: CGSize? = nil) {
         self.hostingVC = hostingVC
+        self.defaultSize = defaultSize
+        hostingVC.sizingOptions = [.minSize]
         super.init(window: nil)
     }
 
@@ -25,10 +27,20 @@ final class WindowController<Content>: NSWindowController where Content: View {
     override var windowNibName: NSNib.Name? { "" }
 
     let hostingVC: NSHostingController<Content>
+    let defaultSize: CGSize?
 
     override func loadWindow() {
-        window = NSWindow(contentViewController: hostingVC)
-        window?.center()
+        let window = NSWindow(contentViewController: hostingVC)
+        self.window = window
+        let size = defaultSize ?? CGSize(width: 500, height: 300)
+        // Attachment may already have updated the hosting view's minimum size.
+        window.setContentSize(CGSize(
+            width: max(size.width, window.contentMinSize.width),
+            height: max(size.height, window.contentMinSize.height)
+        ))
+        hostingVC.view.needsUpdateConstraints = true
+        hostingVC.view.updateConstraintsForSubtreeIfNeeded()
+        window.center()
     }
 }
 
